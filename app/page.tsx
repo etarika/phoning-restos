@@ -163,8 +163,8 @@ function saveStore(store: Store) {
 
 // Couleurs par statut
 const STATUS_COLOR: Record<string, string> = {
-  "À contacter": "bg-amber-50",
-  "Pas de réponse": "bg-slate-50",
+  "À contacter": "bg-slate-50",
+  "Pas de réponse": "bg-amber-50",
   "Rappel demandé": "bg-blue-50",
   "Rendez-vous pris": "bg-emerald-50",
   "Pas intéressé": "bg-rose-50",
@@ -221,7 +221,7 @@ useEffect(() => {
     const { data, error } = await supabase
       .from("phoning_rows")
       .select("*")
-      .order("created_at", { ascending: true });
+.order("restaurant", { ascending: true });
 
     if (error) {
       console.error("Supabase load error:", error.message);
