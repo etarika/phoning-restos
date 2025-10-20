@@ -273,6 +273,11 @@ useEffect(() => {
     });
   }, [store.rows, fStars, fArr, fStatut, q]);
 
+// KPI: nombre de restaurants après filtres
+const kpiRestaurants = useMemo(() => filtered.length, [filtered]);
+
+
+
   const kpis = useMemo(() => {
     const m = new Map<string, number>();
     store.statuses.forEach(s => m.set(s, 0));
@@ -476,29 +481,39 @@ useEffect(() => {
 
 
         {/* KPIs par statut (cliquables pour filtrer) */}
-        <section className="rounded-2xl border bg-white p-4 shadow-sm">
-          <div className="flex flex-wrap items-center gap-2">
-             {store.statuses.map((s) => {
-   const active = fStatut === s;
-   const bg = STATUS_COLOR_BG[s] ?? "bg-slate-100";
-   const ring = STATUS_COLOR_RING[s] ?? "ring-slate-300";
-   return (
-     <button
-       key={s}
-       onClick={() => setFStatut(prev => (prev === s ? "all" : s))}
-       className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm shadow-sm 
-                   ${bg} ring-1 ${ring} ${active ? "font-semibold" : ""}`}
-       title="Cliquer pour filtrer"
-     >
-       <span>{s}</span>
-       <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border px-2 text-xs bg-white/70">
-         {kpis.get(s) ?? 0}
-       </span>
-     </button>
-   );
- })}
-          </div>
-        </section>
+<section className="rounded-2xl border bg-white p-4 shadow-sm">
+  <div className="flex flex-wrap items-center gap-2">
+    {store.statuses.map((s) => {
+      const active = fStatut === s;
+      const bg = STATUS_COLOR_BG[s] ?? "bg-slate-100";
+      const ring = STATUS_COLOR_RING[s] ?? "ring-slate-300";
+      return (
+        <button
+          key={s}
+          onClick={() => setFStatut((prev) => (prev === s ? "all" : s))}
+          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm shadow-sm ${bg} ring-1 ${ring} ${active ? "font-semibold" : ""}`}
+          title="Cliquer pour filtrer"
+        >
+          <span>{s}</span>
+          <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border px-2 text-xs bg-white/70">
+            {kpis.get(s) ?? 0}
+          </span>
+        </button>
+      );
+    })}
+
+    {/* KPI global : nombre de restaurants (à droite) */}
+    <div className="ml-auto">
+      <span className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm bg-white shadow-sm">
+        <span className="font-medium">Restaurants</span>
+        <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border px-2 text-xs bg-slate-100">
+          {kpiRestaurants}
+        </span>
+      </span>
+    </div>
+  </div>
+</section>
+
 
         {/* Filtres */}
         <section className="rounded-2xl border bg-white p-4 shadow-sm">
@@ -582,7 +597,7 @@ useEffect(() => {
         <th className="px-2 py-2 w-[3rem] text-center">New</th>
         <th className="px-2 py-2 w-[3rem] text-center">⭐</th>
         <th className="px-2 py-2 w-[5rem] text-center">Arr</th>
-        <th className="px-2 py-2 w-[14rem]">Statut</th>
+        <th className="px-2 py-2 w-[10rem]">Statut</th>
         <th className="px-2 py-2 w-[10rem]">Dernière MAJ</th>
         <th className="px-2 py-2">Commentaire</th>
         <th className="px-2 py-2 w-[6rem] text-center">CV</th>
