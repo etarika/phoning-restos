@@ -57,6 +57,9 @@ const STATUS_COLOR_RING: Record<string, string> = {
 };
 
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (typeof window !== "undefined" ? window.location.origin : "");
 
 const defaultStatuses = [
   "À contacter",
@@ -211,6 +214,43 @@ useEffect(() => {
   return () => sub.subscription.unsubscribe();
 }, []);
 
+
+// Charger les lignes depuis Supabase au montage
+useEffect(() => {
+  (async () => {
+    const { data, error } = await supabase
+      .from("phoning_rows")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Supabase load error:", error.message);
+      return;
+    }
+
+    if (data?.length) {
+      setStore((s) => ({
+        ...s,
+        rows: data.map((r: any) => ({
+          id: r.id,
+          restaurant: r.restaurant,
+          adresse: r.adresse ?? "",
+          telephone: r.telephone ?? "",
+          nouveau: r.nouveau ?? "",
+          etoiles: r.etoiles ?? "",
+          arr: r.arr ?? "",
+          statut: r.statut ?? "",
+          derniereMaj: r.derniere_maj ?? "",
+          commentaire: r.commentaire ?? "",
+          cvEnvoye: !!r.cv_envoye,
+          lmEnvoye: !!r.lm_envoye,
+        })),
+      }));
+    }
+  })();
+}, []);
+
+
   const starOptions = useMemo(() => {
     const set = new Set(store.rows.map(r => r.etoiles).filter(Boolean));
     return ["all", ...Array.from(set)];
@@ -243,11 +283,38 @@ useEffect(() => {
   }, [store.rows, store.statuses]);
 
   function updateRow(id: string, patch: Partial<Row>) {
-    setStore(s => ({
-      ...s,
-      rows: s.rows.map(r => (r.id === id ? { ...r, ...patch } : r)),
-    }));
-  }
+  // mise à jour optimiste dans l'UI
+  setStore((s) => ({
+    ...s,
+    rows: s.rows.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+  }));
+
+  // upsert Supabase en arrière-plan
+  const current = store.rows.find((r) => r.id === id);
+  const merged = { ...current, ...patch };
+  if (!merged) return;
+
+  supabase
+    .from("phoning_rows")
+    .upsert({
+      id,
+      restaurant: merged.restaurant,
+      adresse: merged.adresse,
+      telephone: merged.telephone,
+      nouveau: merged.nouveau,
+      etoiles: merged.etoiles,
+      arr: merged.arr,
+      statut: merged.statut,
+      derniere_maj: merged.derniereMaj || null,
+      commentaire: merged.commentaire || null,
+      cv_envoye: merged.cvEnvoye ?? false,
+      lm_envoye: merged.lmEnvoye ?? false,
+    })
+    .then(({ error }) => {
+      if (error) console.error("Supabase upsert error:", error.message);
+    });
+}
+
 
   function exportCSV() {
     const headers = [
@@ -696,10 +763,14 @@ function splitCSVLine(line: string): string[] {
 
 
 async function signIn(email: string) {
-  const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin }});
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: SITE_URL }
+  });
   if (error) alert(error.message);
   else alert("Regarde ta boîte mail (lien magique).");
 }
+
 async function signOut() {
   await supabase.auth.signOut();
   location.reload();
