@@ -599,7 +599,7 @@ const kpiRestaurants = useMemo(() => filtered.length, [filtered]);
         <th className="px-2 py-2 w-[5rem] text-center">Arr</th>
         <th className="px-2 py-2 w-[10rem]">Statut</th>
         <th className="px-2 py-2 w-[10rem]">Dernière MAJ</th>
-        <th className="px-2 py-2">Commentaire</th>
+        <th className="px-2 py-2 w-[16rem]">Commentaire</th>
         <th className="px-2 py-2 w-[6rem] text-center">CV</th>
         <th className="px-2 py-2 w-[6rem] text-center">LM</th>
       </tr>
@@ -661,7 +661,7 @@ const kpiRestaurants = useMemo(() => filtered.length, [filtered]);
           </td>
 
           {/* Commentaire (auto-height) */}
-          <td className="px-2 py-2 align-top">
+          <td className="px-2 py-2 align-top w-[16rem]">
             <textarea
               data-autosize
               rows={1}
