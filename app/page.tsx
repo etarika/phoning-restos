@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -33,6 +34,23 @@ type Store = {
 };
 
 const STORAGE_KEY = "phoning-restos-v2";
+
+const STATUS_COLOR_BG: Record<string, string> = {
+  "À contacter": "bg-amber-100",
+  "Pas de réponse": "bg-slate-100",
+  "Rappel demandé": "bg-blue-100",
+  "Rendez-vous pris": "bg-emerald-100",
+  "Pas intéressé": "bg-rose-100",
+};
+const STATUS_COLOR_RING: Record<string, string> = {
+  "À contacter": "ring-amber-300",
+  "Pas de réponse": "ring-slate-300",
+  "Rappel demandé": "ring-blue-300",
+  "Rendez-vous pris": "ring-emerald-300",
+  "Pas intéressé": "ring-rose-300",
+};
+
+
 
 const defaultStatuses = [
   "À contacter",
@@ -104,6 +122,18 @@ function migrateRows(rows: any[]): Row[] {
   }));
 }
 
+
+function loadStoreSafe<T>(fallback: T, key: string): T {
+  if (typeof window === "undefined") return fallback; // SSR
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+
 function loadStore(): Store {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -122,8 +152,33 @@ function saveStore(store: Store) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
 }
 
+// Couleurs par statut
+const STATUS_COLOR: Record<string, string> = {
+  "À contacter": "bg-amber-50",
+  "Pas de réponse": "bg-slate-50",
+  "Rappel demandé": "bg-blue-50",
+  "Rendez-vous pris": "bg-emerald-50",
+  "Pas intéressé": "bg-rose-50",
+};
+
+function statusRowClass(s: string) {
+  return STATUS_COLOR[s] ?? "";
+}
+
+// Applique une bordure douce au select selon le statut
+function statusSelectClass(s: string) {
+  if (s === "Rendez-vous pris") return "border-emerald-300";
+  if (s === "Rappel demandé") return "border-blue-300";
+  if (s === "À contacter") return "border-amber-300";
+  if (s === "Pas intéressé") return "border-rose-300";
+  if (s === "Pas de réponse") return "border-slate-300";
+  return "";
+}
+
+
+
 export default function Page() {
-  const [store, setStore] = useState<Store>(() => loadStore());
+  const [store, setStore] = useState<Store>({ rows: seedRows, statuses: defaultStatuses });
   const [q, setQ] = useState("");
   const [fStars, setFStars] = useState<string>("all");
   const [fArr, setFArr] = useState<string>("all");
@@ -131,7 +186,17 @@ export default function Page() {
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState("");
 
-  useEffect(() => saveStore(store), [store]);
+   useEffect(() => {
+   if (typeof window !== "undefined") {
+     localStorage.setItem("phoning-restos-v2", JSON.stringify(store));
+   }
+ }, [store]);
+
+useEffect(() => {
+  document.querySelectorAll<HTMLTextAreaElement>('textarea[data-autosize]')
+    .forEach(ta => autosize(ta));
+}, []);
+
 
   const starOptions = useMemo(() => {
     const set = new Set(store.rows.map(r => r.etoiles).filter(Boolean));
@@ -303,180 +368,238 @@ export default function Page() {
       <div className="mx-auto max-w-7xl space-y-6">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Suivi phoning — Restaurants ⭐</h1>
-            <p className="text-sm text-slate-600">
-              KPIs par statut, filtres (Étoiles/Arr/Statut), édition inline, import/export CSV.
-            </p>
+            <h1 className="text-2xl font-bold">Phoning — Restaurants AVA ⭐</h1>
+            
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => setShowImport(true)} className="rounded-xl border bg-white px-3 py-2 shadow-sm hover:bg-slate-50">
-              Importer CSV/TSV
-            </button>
-            <button onClick={exportCSV} className="rounded-xl border bg-white px-3 py-2 shadow-sm hover:bg-slate-50">
-              Exporter CSV
-            </button>
-            <button onClick={resetAll} className="rounded-xl border bg-white px-3 py-2 shadow-sm hover:bg-slate-50">
-              Réinitialiser
-            </button>
-          </div>
-        </header>
+                  </header>
 
         {/* KPIs par statut (cliquables pour filtrer) */}
         <section className="rounded-2xl border bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-center gap-2">
-            {store.statuses.map((s) => (
-              <button
-                key={s}
-                onClick={() => setFStatut(prev => (prev === s ? "all" : s))}
-                className={`rounded-full border px-3 py-1 text-sm shadow-sm hover:bg-slate-50 ${fStatut === s ? "bg-slate-100" : ""}`}
-                title="Cliquer pour filtrer"
-              >
-                <span className="font-medium">{s}</span>
-                <span className="ml-2 inline-block rounded-full border px-2 text-xs">{kpis.get(s) ?? 0}</span>
-              </button>
-            ))}
+             {store.statuses.map((s) => {
+   const active = fStatut === s;
+   const bg = STATUS_COLOR_BG[s] ?? "bg-slate-100";
+   const ring = STATUS_COLOR_RING[s] ?? "ring-slate-300";
+   return (
+     <button
+       key={s}
+       onClick={() => setFStatut(prev => (prev === s ? "all" : s))}
+       className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm shadow-sm 
+                   ${bg} ring-1 ${ring} ${active ? "font-semibold" : ""}`}
+       title="Cliquer pour filtrer"
+     >
+       <span>{s}</span>
+       <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border px-2 text-xs bg-white/70">
+         {kpis.get(s) ?? 0}
+       </span>
+     </button>
+   );
+ })}
           </div>
         </section>
 
         {/* Filtres */}
         <section className="rounded-2xl border bg-white p-4 shadow-sm">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
-            <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-slate-600">Recherche</label>
-              <input
-                value={q}
-                onChange={e => setQ(e.target.value)}
-                placeholder="Nom / adresse / téléphone"
-                className="mt-1 w-full rounded-xl border px-3 py-2 outline-none focus:ring"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600">Étoiles</label>
-              <select value={fStars} onChange={e => setFStars(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2">
-                {starOptions.map(opt => (
-                  <option key={opt} value={opt}>
-                    {opt === "all" ? "Toutes" : opt}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600">Arrondissement</label>
-              <select value={fArr} onChange={e => setFArr(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2">
-                {arrOptions.map(opt => (
-                  <option key={opt} value={opt}>
-                    {opt === "all" ? "Tous" : opt}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600">Statut</label>
-              <select value={fStatut} onChange={e => setFStatut(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2">
-                {statutOptions.map(opt => (
-                  <option key={opt} value={opt}>
-                    {opt === "all" ? "Tous" : opt}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-12 items-end">
+  {/* Recherche — plus étroit (5/12) */}
+  <div className="md:col-span-5">
+    <label className="block text-xs font-medium text-slate-600">Recherche</label>
+    <input
+      value={q}
+      onChange={e => setQ(e.target.value)}
+      placeholder="Nom / adresse / téléphone"
+      className="mt-1 w-full rounded-xl border px-3 py-2 outline-none focus:ring"
+    />
+  </div>
+
+  {/* Étoiles (2/12) */}
+  <div className="md:col-span-2">
+    <label className="block text-xs font-medium text-slate-600">Étoiles</label>
+    <select
+      value={fStars}
+      onChange={e => setFStars(e.target.value)}
+      className="mt-1 w-full rounded-xl border px-3 py-2"
+    >
+      {starOptions.map(opt => (
+        <option key={opt} value={opt}>{opt === "all" ? "Toutes" : opt}</option>
+      ))}
+    </select>
+  </div>
+
+  {/* Arrondissement (2/12) */}
+  <div className="md:col-span-2">
+    <label className="block text-xs font-medium text-slate-600">Arrondissement</label>
+    <select
+      value={fArr}
+      onChange={e => setFArr(e.target.value)}
+      className="mt-1 w-full rounded-xl border px-3 py-2"
+    >
+      {arrOptions.map(opt => (
+        <option key={opt} value={opt}>{opt === "all" ? "Tous" : opt}</option>
+      ))}
+    </select>
+  </div>
+
+  {/* Statut (2/12) */}
+  <div className="md:col-span-2">
+    <label className="block text-xs font-medium text-slate-600">Statut</label>
+    <select
+      value={fStatut}
+      onChange={e => setFStatut(e.target.value)}
+      className="mt-1 w-full rounded-xl border px-3 py-2"
+    >
+      {statutOptions.map(opt => (
+        <option key={opt} value={opt}>{opt === "all" ? "Tous" : opt}</option>
+      ))}
+    </select>
+  </div>
+
+  {/* Bouton Réinitialiser (1/12), aligné à droite */}
+  <div className="md:col-span-1 flex md:justify-end">
+    <button
+      onClick={() => { setQ(""); setFArr("all"); setFStars("all"); setFStatut("all"); }}
+      className="mt-6 md:mt-0 rounded-xl border bg-white px-3 py-2 text-sm shadow-sm hover:bg-slate-50"
+      title="Réinitialiser les filtres"
+    >
+      Réinit.
+    </button>
+  </div>
+</div>
+
+
         </section>
 
         {/* Tableau principal */}
-        <section className="rounded-2xl border bg-white shadow-sm overflow-hidden">
-          <table className="w-full table-fixed border-collapse">
-            <thead className="bg-slate-100 text-left text-sm">
-              <tr>
-                <th className="p-3 w-48">Restaurant</th>
-                <th className="p-3 w-64">Adresse</th>
-                <th className="p-3 w-40">Téléphone</th>
-                <th className="p-3 w-16">New</th>
-                <th className="p-3 w-14">⭐</th>
-                <th className="p-3 w-20">Arr</th>
-                <th className="p-3 w-44">Statut</th>
-                <th className="p-3 w-40">Dernière MAJ</th>
-                <th className="p-3">Commentaire</th>
-                <th className="p-3 w-28">CV envoyé</th>
-                <th className="p-3 w-28">LM envoyé</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm">
-              {filtered.map(r => (
-                <tr key={r.id} className="border-t hover:bg-slate-50">
-                  <td className="p-3 font-medium truncate" title={r.restaurant}>
-                    {r.restaurant}
-                  </td>
-                  <td className="p-3 truncate" title={r.adresse}>
-                    {r.adresse}
-                  </td>
-                  <td className="p-3 whitespace-nowrap">{r.telephone}</td>
-                  <td className="p-3 text-center">{r.nouveau ? "🆕" : ""}</td>
-                  <td className="p-3 text-center">{r.etoiles}</td>
-                  <td className="p-3">{r.arr}</td>
-                  <td className="p-3">
-                    <select
-                      className="w-full rounded-lg border px-2 py-1"
-                      value={r.statut}
-                      onChange={e => updateRow(r.id, { statut: e.target.value })}
-                    >
-                      <option value="">—</option>
-                      {store.statuses.map(s => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="p-3">
-                    <input
-                      type="date"
-                      className="w-full rounded-lg border px-2 py-1"
-                      value={r.derniereMaj}
-                      onChange={e => updateRow(r.id, { derniereMaj: e.target.value })}
-                    />
-                  </td>
-                  <td className="p-3">
-                    <input
-                      className="w-full rounded-lg border px-2 py-1"
-                      value={r.commentaire}
-                      onChange={e => updateRow(r.id, { commentaire: e.target.value })}
-                      placeholder="Note rapide (qui a appelé, retour, etc.)"
-                    />
-                  </td>
-                  <td className="p-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={r.cvEnvoye}
-                      onChange={e => updateRow(r.id, { cvEnvoye: e.target.checked })}
-                    />
-                  </td>
-                  <td className="p-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={r.lmEnvoye}
-                      onChange={e => updateRow(r.id, { lmEnvoye: e.target.checked })}
-                    />
-                  </td>
-                </tr>
+<section className="rounded-2xl border bg-white shadow-sm overflow-x-auto">
+  <table className="w-full table-auto border-collapse text-[13px]">
+    <thead className="bg-slate-100 text-left">
+      <tr>
+        <th className="px-2 py-2">Restaurant</th>
+        <th className="px-2 py-2">Adresse</th>
+        <th className="px-2 py-2 w-[8rem]">Téléphone</th>
+        <th className="px-2 py-2 w-[3rem] text-center">New</th>
+        <th className="px-2 py-2 w-[3rem] text-center">⭐</th>
+        <th className="px-2 py-2 w-[5rem] text-center">Arr</th>
+        <th className="px-2 py-2 w-[14rem]">Statut</th>
+        <th className="px-2 py-2 w-[10rem]">Dernière MAJ</th>
+        <th className="px-2 py-2">Commentaire</th>
+        <th className="px-2 py-2 w-[6rem] text-center">CV</th>
+        <th className="px-2 py-2 w-[6rem] text-center">LM</th>
+      </tr>
+    </thead>
+    <tbody className="align-top">
+      {filtered.map((r) => (
+        <tr key={r.id} className={`border-t hover:bg-slate-100/60 ${statusRowClass(r.statut)}`}>
+          {/* Restaurant */}
+          <td
+            className="px-2 py-2 font-medium whitespace-normal break-words leading-5 max-w-[12rem]"
+            title={r.restaurant}
+          >
+            {r.restaurant}
+          </td>
+
+          {/* Adresse */}
+          <td
+            className="px-2 py-2 whitespace-normal break-words leading-5 max-w-[18rem]"
+            title={r.adresse}
+          >
+            {r.adresse}
+          </td>
+
+          {/* Téléphone */}
+          <td className="px-2 py-2 whitespace-nowrap">{r.telephone}</td>
+
+          {/* New / Étoiles / Arr */}
+          <td className="px-2 py-2 text-center">{r.nouveau ? "🆕" : ""}</td>
+          <td className="px-2 py-2 text-center">{r.etoiles}</td>
+          <td className="px-2 py-2 text-center">{r.arr}</td>
+
+          {/* Statut */}
+          <td className="px-2 py-2 whitespace-nowrap">
+            <select
+              className={`w-full min-w-[12rem] rounded-lg border px-2 py-1 ${statusSelectClass(r.statut)}`}
+              value={r.statut}
+              onChange={(e) => {
+                const today = new Date().toISOString().slice(0, 10);
+                updateRow(r.id, { statut: e.target.value, derniereMaj: today });
+              }}
+            >
+              <option value="">—</option>
+              {store.statuses.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
               ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={11} className="p-6 text-center text-slate-500">
-                    Aucun résultat avec ces filtres.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </section>
+            </select>
+          </td>
+
+          {/* Dernière MAJ */}
+          <td className="px-2 py-2">
+            <input
+              type="date"
+              className="w-full rounded-lg border px-2 py-1"
+              value={r.derniereMaj}
+              onChange={(e) => updateRow(r.id, { derniereMaj: e.target.value })}
+            />
+          </td>
+
+          {/* Commentaire (auto-height) */}
+          <td className="px-2 py-2 align-top">
+            <textarea
+              data-autosize
+              rows={1}
+               className="w-full rounded-lg border px-2 py-1 leading-5 align-top overflow-hidden"
+              value={r.commentaire}
+              onChange={(e) => {
+                const today = new Date().toISOString().slice(0, 10);
+                updateRow(r.id, { commentaire: e.target.value, derniereMaj: today });
+                autosize(e.currentTarget);
+              }}
+              onInput={(e) => autosize(e.currentTarget)}
+              placeholder="Note rapide (qui a appelé, retour, etc.)"
+              style={{ resize: "none", minHeight: "2.25rem" }}
+            />
+          </td>
+
+          {/* CV / LM */}
+          <td className="px-2 py-2 text-center">
+            <input
+              type="checkbox"
+              className="h-5 w-5 accent-emerald-600"
+              checked={r.cvEnvoye}
+              onChange={(e) =>
+                updateRow(r.id, { cvEnvoye: e.target.checked, derniereMaj: new Date().toISOString().slice(0, 10) })
+              }
+            />
+          </td>
+          <td className="px-2 py-2 text-center">
+            <input
+              type="checkbox"
+              className="h-5 w-5 accent-indigo-600"
+              checked={r.lmEnvoye}
+              onChange={(e) =>
+                updateRow(r.id, { lmEnvoye: e.target.checked, derniereMaj: new Date().toISOString().slice(0, 10) })
+              }
+            />
+          </td>
+        </tr>
+      ))}
+      {filtered.length === 0 && (
+        <tr>
+          <td colSpan={11} className="p-6 text-center text-slate-500">
+            Aucun résultat avec ces filtres.
+          </td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+</section>
+
 
         <footer className="text-xs text-slate-500">
           <p>
-            Import: Restaurant, Adresse, Téléphone, Nouveau, Etoiles, Arr, Statut, Dernière MAJ, Commentaire, CV envoyé, LM envoyé.
-            TSV (copier/coller Excel) accepté.
+            Réalisé par Papa avec amour
           </p>
-          <p>Modifs sauvegardées dans ce navigateur (localStorage). Pour multi-utilisateurs : brancher Supabase.</p>
         </footer>
       </div>
 
@@ -535,6 +658,14 @@ function splitCSVLine(line: string): string[] {
   result.push(current);
   return result.map((s) => s.trim());
 }
+
+// autosize pour <textarea>
+function autosize(textarea: HTMLTextAreaElement | null) {
+  if (!textarea) return;
+  textarea.style.height = "auto";
+  textarea.style.height = `${textarea.scrollHeight}px`;
+}
+
 
 function normalizeDate(input: string): string {
   if (!input) return "";
