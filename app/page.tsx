@@ -2,6 +2,12 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+export const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,      // à mettre dans tes variables d'env
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!  // idem
+);
 
 /**
  * Phoning Restaurants — v2
@@ -197,6 +203,13 @@ useEffect(() => {
     .forEach(ta => autosize(ta));
 }, []);
 
+// Au montage, savoir si on est loggé
+const [user, setUser] = useState<null | { email?: string }>(null);
+useEffect(() => {
+  supabase.auth.getUser().then(({ data }) => setUser(data.user));
+  const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setUser(s?.user ?? null));
+  return () => sub.subscription.unsubscribe();
+}, []);
 
   const starOptions = useMemo(() => {
     const set = new Set(store.rows.map(r => r.etoiles).filter(Boolean));
@@ -367,11 +380,33 @@ useEffect(() => {
     <div className="min-h-screen w-full bg-slate-50 text-slate-900 p-6">
       <div className="mx-auto max-w-7xl space-y-6">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Phoning — Restaurants AVA ⭐</h1>
-            
-          </div>
-                  </header>
+  <div>
+    <h1 className="text-2xl font-bold">Phoning — Restaurants AVA ⭐</h1>
+  </div>
+
+  {/* Auth UI à droite */}
+  {!user ? (
+    <div className="flex gap-2">
+      <input id="loginEmail" placeholder="email" className="rounded border px-2 py-1" />
+      <button
+        onClick={() =>
+          signIn((document.getElementById("loginEmail") as HTMLInputElement).value)
+        }
+        className="rounded-xl border bg-white px-3 py-2 shadow-sm"
+      >
+        Se connecter
+      </button>
+    </div>
+  ) : (
+    <div className="text-sm flex items-center gap-3">
+      <span>Connecté : {user.email}</span>
+      <button onClick={signOut} className="rounded-xl border bg-white px-3 py-2 shadow-sm">
+        Se déconnecter
+      </button>
+    </div>
+  )}
+</header>
+
 
         {/* KPIs par statut (cliquables pour filtrer) */}
         <section className="rounded-2xl border bg-white p-4 shadow-sm">
@@ -658,6 +693,18 @@ function splitCSVLine(line: string): string[] {
   result.push(current);
   return result.map((s) => s.trim());
 }
+
+
+async function signIn(email: string) {
+  const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin }});
+  if (error) alert(error.message);
+  else alert("Regarde ta boîte mail (lien magique).");
+}
+async function signOut() {
+  await supabase.auth.signOut();
+  location.reload();
+}
+
 
 // autosize pour <textarea>
 function autosize(textarea: HTMLTextAreaElement | null) {
