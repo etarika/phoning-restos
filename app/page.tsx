@@ -42,15 +42,15 @@ type Store = {
 const STORAGE_KEY = "phoning-restos-v2";
 
 const STATUS_COLOR_BG: Record<string, string> = {
-  "À contacter": "bg-amber-100",
-  "Pas de réponse": "bg-slate-100",
+  "À contacter": "bg-slate-100",
+  "Pas de réponse": "bg-amber-100",
   "Rappel demandé": "bg-blue-100",
   "Rendez-vous pris": "bg-emerald-100",
   "Pas intéressé": "bg-rose-100",
 };
 const STATUS_COLOR_RING: Record<string, string> = {
-  "À contacter": "ring-amber-300",
-  "Pas de réponse": "ring-slate-300",
+  "À contacter": "ring-slate-300",
+  "Pas de réponse": "ring-amber-300",
   "Rappel demandé": "ring-blue-300",
   "Rendez-vous pris": "ring-emerald-300",
   "Pas intéressé": "ring-rose-300",
@@ -178,9 +178,9 @@ function statusRowClass(s: string) {
 function statusSelectClass(s: string) {
   if (s === "Rendez-vous pris") return "border-emerald-300";
   if (s === "Rappel demandé") return "border-blue-300";
-  if (s === "À contacter") return "border-amber-300";
+  if (s === "À contacter") return "border-slate-300"; 
   if (s === "Pas intéressé") return "border-rose-300";
-  if (s === "Pas de réponse") return "border-slate-300";
+  if (s === "Pas de réponse") return "border-amber-300";
   return "";
 }
 
